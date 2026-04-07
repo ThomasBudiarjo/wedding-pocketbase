@@ -4,6 +4,8 @@ import (
 	"log"
 
 	"github.com/pocketbase/pocketbase"
+
+	_ "wedding-pocketbase/pb_migrations"
 )
 
 func main() {
