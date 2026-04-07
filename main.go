@@ -1,16 +1,28 @@
 package main
 
 import (
+	"crypto/rand"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase"
+	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 
 	_ "wedding-pocketbase/pb_migrations"
 )
+
+func generateSecret(n int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
+	b := make([]byte, n)
+	rand.Read(b)
+	for i := range b {
+		b[i] = charset[int(b[i])%len(charset)]
+	}
+	return string(b)
+}
 
 func main() {
 	app := pocketbase.New()
@@ -117,6 +129,37 @@ func main() {
 				},
 			})
 		})
+
+		se.Router.POST("/api/checkin/regenerate-secret/{eventId}", func(e *core.RequestEvent) error {
+			eventId := e.Request.PathValue("eventId")
+			if eventId == "" {
+				return e.BadRequestError("Missing event ID", nil)
+			}
+
+			auth := e.Auth
+			if auth == nil {
+				return e.UnauthorizedError("Authentication required", nil)
+			}
+
+			event, err := e.App.FindRecordById("events", eventId)
+			if err != nil {
+				return e.NotFoundError("Event not found", err)
+			}
+
+			if event.GetString("owner") != auth.Id {
+				return e.ForbiddenError("You do not own this event", nil)
+			}
+
+			newSecret := generateSecret(32)
+			event.Set("check_in_secret", newSecret)
+			if err := e.App.Save(event); err != nil {
+				return e.InternalServerError("Failed to regenerate secret", err)
+			}
+
+			return e.JSON(http.StatusOK, map[string]any{
+				"check_in_secret": newSecret,
+			})
+		}).Bind(apis.RequireAuth())
 
 		return se.Next()
 	})

@@ -106,6 +106,32 @@ Looks up a guest by their check-in QR code and marks them as checked in.
 { "message": "Guest not found" }
 ```
 
+---
+
+### `POST /api/checkin/regenerate-secret/{eventId}`
+
+Generates a new `check_in_secret` for the event, invalidating all greeters using the old secret. **Requires PocketBase authentication** -- the authenticated user must be the event owner.
+
+**Headers**
+
+```
+Authorization: Bearer <pb_auth_token>
+```
+
+**Response `200`**
+
+```json
+{ "check_in_secret": "newrandomsecret123..." }
+```
+
+**Response `401`** -- not authenticated
+
+**Response `403`** -- authenticated user does not own this event
+
+**Response `404`** -- event not found
+
+---
+
 ## Migrations
 
 Migrations live in `pb_migrations/` and run automatically on startup:
